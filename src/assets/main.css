@@ -1,0 +1,65 @@
+/* @import './base.css';
+
+#app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-weight: normal;
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    place-items: center;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 2rem;
+  }
+}
+*/
+
+/* 1. すべての要素の不要な外枠・内枠をリセット */
+* {
+  box-sizing: border-box;
+}
+
+/* 2. ブラウザのデフォルト余白を完全にゼロにする */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden; /* 全体的な不要なスクロールを防ぐ */
+}
+
+/* 3. Vueのルート要素「#app」の制限を完全に解除し、左上に固定 */
+#app {
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
+  
+  /* デフォルトテンプレートのPC用グリッド/フレックス配置を完全リセット */
+  display: block !important; 
+  position: absolute;
+  top: 0;
+  left: 0;
+}
