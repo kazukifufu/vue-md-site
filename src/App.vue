@@ -61,7 +61,7 @@ const htmlContent = ref('')
 const currentArticlePath = ref('')
 
 // Viteの機能でMarkdownファイルを一括インポート
-const markdownFiles = import.meta.glob('./assets/content/**/*.md', { as: 'raw' })
+const markdownFiles = import.meta.glob('./assets/content/**/*.md', { query: '?raw', import: 'default' })
 
 onMounted(() => {
   const structure = {}
