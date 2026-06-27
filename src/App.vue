@@ -3,7 +3,7 @@
     <header class="global-header">
       <div class="header-left">
         <div class="logo">
-          <i class="fa-solid fa-pen-nib"></i> <span>My Markdown Blog</span>
+          <i class="fa-solid fa-pen-nib"></i> <span>Kazuki's Blog. ITは活用する道具である！</span>
         </div>
       </div>
       
