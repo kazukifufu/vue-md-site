@@ -11,6 +11,9 @@
         <button class="nav-btn"><i class="fa-regular fa-pen-to-square"></i> New Entry</button>
         <button class="nav-btn"><i class="fa-solid fa-list-ul"></i> List</button>
         <button class="nav-btn"><i class="fa-regular fa-bell"></i> Notifications</button>
+        <button class="icon-btn" @click="openProfile" title="プロフィール">
+          <i class="fa-regular fa-user"></i>
+        </button>
         <div class="user-icon"><i class="fa-regular fa-circle-user"></i></div>
       </div>
     </header>
@@ -41,10 +44,16 @@
       </aside>
 
       <main class="content-area">
-        <div v-if="htmlContent" class="markdown-body" v-html="htmlContent"></div>
-        <div v-else class="placeholder">
-          <p>左側のメニューから記事を選択してください。</p>
+        <div v-if="showProfile">
+          <UserProfile />
         </div>
+
+        <div v-else-if="htmlContent" class="markdown-body" v-html="htmlContent"></div>
+
+        <div v-else class="placeholder">
+          <p>左側のメニューから記事を選択してください.</p>
+        </div>
+
       </main>
     </div>
   </div>
@@ -53,12 +62,15 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { marked } from 'marked'
+import UserProfile from '@/components/UserProfile.vue'
 
 // 状態管理
 const menuData = ref({})
 const expandedCategories = ref({})
 const htmlContent = ref('')
 const currentArticlePath = ref('')
+// 💡 第3回の修正: プロフィール表示フラグ
+const showProfile = ref(false)
 
 // Viteの機能でMarkdownファイルを一括インポート
 const markdownFiles = import.meta.glob('./assets/content/**/*.md', { query: '?raw', import: 'default' })
@@ -66,7 +78,6 @@ const markdownFiles = import.meta.glob('./assets/content/**/*.md', { query: '?ra
 onMounted(() => {
   const structure = {}
   
-  // ファイルパスからカテゴリと記事情報を抽出
   Object.keys(markdownFiles).forEach((filePath) => {
     const parts = filePath.replace('./assets/content/', '').split('/')
     if (parts.length === 2) {
@@ -86,7 +97,6 @@ onMounted(() => {
 
   menuData.value = structure
   
-  // 最初からカテゴリーを開いておきたい場合はここを true に変更してください
   Object.keys(structure).forEach(category => {
     expandedCategories.value[category] = false
   })
@@ -97,11 +107,20 @@ const toggleCategory = (category) => {
   expandedCategories.value[category] = !expandedCategories.value[category]
 }
 
-// 記事の選択とパース
+// 💡 第3回の修正: 記事の選択とパース（プロフィールを閉じる挙動を追加）
 const selectArticle = async (article) => {
+  showProfile.value = false // 左メニューの記事が選ばれたら、プロフィール画面は閉じる！
   currentArticlePath.value = article.path
+  
   const rawContent = await markdownFiles[article.path]()
   htmlContent.value = marked(rawContent)
+}
+
+// 💡 第3回の修正: プロフィール画面を呼び出す専用の関数
+const openProfile = () => {
+  showProfile.value = true  // プロフィールフラグをONにする！
+  currentArticlePath.value = '' // 左メニューの選択ハイライトを綺麗に消す
+  htmlContent.value = ''        // 念のため、現在表示中だった記事のデータをクリア
 }
 </script>
 
@@ -155,6 +174,16 @@ const selectArticle = async (article) => {
 
 .nav-btn:hover {
   color: #007acc;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
 }
 
 .user-icon {
