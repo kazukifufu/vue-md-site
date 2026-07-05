@@ -7,7 +7,7 @@
       </div>
       <div class="profile-title-area">
         <h1>PROFILE</h1>
-        <p class="subtitle">毎週の役割と目標（Weekly Compass）</p>
+        <p class="subtitle">自己紹介（Self Introduction）</p>
       </div>
     </div>
 
@@ -78,8 +78,126 @@
 </script>
 
 <style scoped>
-/* スタイルは次回の記事でドカンと作り込みます！ */
+/* ① 全体のコンテナ */
 .profile-container {
+  padding: 30px 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ② 上部ヘッダー */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 35px;
+  border-bottom: 2px solid #eaeaea;
+  padding-bottom: 20px;
+}
+.profile-avatar-icon {
+  font-size: 3.5rem;
+  color: #4b5563;
+}
+.profile-title-area h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin: 0 0 5px 0;
+  color: #1f2937;
+}
+.profile-title-area .subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+/* ③ CSS Gridによる2カラム整列レイアウト */
+.compass-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+}
+
+/* ④ カードの共通スタイル */
+.compass-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.compass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* ⑤ カードヘッダー */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  background: #f9fafb;
+}
+.card-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+}
+.en-title {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+/* ⑥ 役割ごとのテーマカラー（左端の太線とアイコン） */
+.card-personal { border-left: 5px solid #ec4899; }
+.card-personal .card-header i { color: #ec4899; font-size: 1.25rem; }
+
+.card-dev { border-left: 5px solid #3b82f6; }
+.card-dev .card-header i { color: #3b82f6; font-size: 1.25rem; }
+
+.card-family { border-left: 5px solid #10b981; }
+.card-family .card-header i { color: #10b981; font-size: 1.25rem; }
+
+.card-other { border-left: 5px solid #f59e0b; }
+.card-other .card-header i { color: #f59e0b; font-size: 1.25rem; }
+
+/* ⑦ カードボディ & リスト記述 */
+.card-body {
   padding: 20px;
+}
+.objective-label {
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4b5563;
+  letter-spacing: 0.05em;
+}
+.objective-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #374151;
+}
+.objective-list li {
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.objective-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* ⑧ レスポンシブ対応（スマホや画面幅が狭いときは1カラムに自動変化） */
+@media (max-width: 640px) {
+  .compass-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
