@@ -1,18 +1,22 @@
 <template>
   <div class="profile-container">
     
+    <!-- 上部：基本プロフィール情報（ヘッダー領域） -->
     <div class="profile-header">
+      <!-- プロファイルの画像を指定 -->
       <div class="avatar-area">
-        <i class="fa-solid fa-user-gear profile-avatar-icon"></i>
+        <img :src="myAvatar" alt="Avatar" class="profile-avatar-img" />
       </div>
+
       <div class="profile-title-area">
         <h1>PROFILE</h1>
         <p class="subtitle">自己紹介（Self Introduction）</p>
       </div>
     </div>
 
+    <!-- 下部：役割と目標（グリッドコンテナ領域） -->
     <div class="compass-grid">
-      
+      <!-- ※ 4つの役割カード（第6回で作成したもの）がここに入ります。中身はそのまま維持してください。 -->
       <div class="compass-card card-personal">
         <div class="card-header">
           <i class="fa-solid fa-heart"></i>
@@ -74,7 +78,9 @@
 </template>
 
 <script setup>
-// 今回もまだロジックは使わないため空っぽでOKです
+// 💡 プロジェクト内の画像ファイルを直接インポートする
+// エイリアス（@）を使って src/ からのパスでスマートに指定
+import myAvatar from '@/assets/images/profile-avatar.jpg'
 </script>
 
 <style scoped>
@@ -95,10 +101,31 @@
   border-bottom: 2px solid #eaeaea;
   padding-bottom: 20px;
 }
-.profile-avatar-icon {
-  font-size: 3.5rem;
-  color: #4b5563;
+
+/* 💡 新設：アバター表示エリアの丸型土台 */
+.avatar-area {
+  position: relative;
+  width: 85px;
+  height: 85px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
+
+/* 💡 アバター画像（円形にフィットさせる） */
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .profile-title-area h1 {
   font-size: 2rem;
   font-weight: 800;
