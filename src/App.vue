@@ -7,8 +7,16 @@
         </div>
       </div>
       
+      <div class="header-ticker">
+        <div class="ticker-wrapper">
+          <div class="ticker-content">
+            【お知らせ】Vue 3 と Cloudflare Pages を使った自作ブログのカスタマイズ連載を更新中！ 🚀 &nbsp;&nbsp;&nbsp;&nbsp;
+            【今週の目標】プロフィール画面に Weekly Compass を導入しました。右上のアバターアイコンからぜひチェックしてください！ ✨
+          </div>
+        </div>
+      </div>
+
       <div class="header-right">
-        <button class="nav-btn"><i class="fa-regular fa-pen-to-square"></i> New Entry</button>
         <button class="nav-btn"><i class="fa-solid fa-list-ul"></i> List</button>
         <button class="nav-btn"><i class="fa-regular fa-bell"></i> Notifications</button>
         <button class="icon-btn" @click="openProfile" title="プロフィール">
@@ -147,6 +155,11 @@ const openProfile = () => {
   flex-shrink: 0;
 }
 
+/* 左側：ロゴエリア（伸縮しないよう固定） */
+.header-left {
+  flex-shrink: 0;
+}
+
 .header-left .logo {
   display: flex;
   align-items: center;
@@ -155,10 +168,58 @@ const openProfile = () => {
   font-size: 1.1rem;
 }
 
+/* 💡 追加：中央のテロップ全体コンテナ（左右の隙間を自動で埋める） */
+.header-ticker {
+  flex-grow: 1;          /* 左右の空きスペースを埋めるように横幅を自動確保 */
+  margin: 0 30px;        /* 左右の要素と重ならないようマージンを確保 */
+  overflow: hidden;      /* 枠からはみ出たテキストを隠す */
+  background: #f9fafb;   /* 薄いグレーにして背景から少し浮かせる */
+  border-radius: 20px;   /* 今風の丸みのあるカプセルデザイン */
+  padding: 6px 15px;
+  display: flex;
+  align-items: center;
+}
+
+/* 💡 追加：テロップが通る道（ラッパー） */
+.ticker-wrapper {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;   /* テキストを絶対に改行させない */
+}
+
+/* 💡 追加：実際に横スクロールするテキスト要素 */
+.ticker-content {
+  display: inline-block;
+  padding-left: 100%;    /* 開始時に画面の右端からスタートさせる */
+  font-size: 0.85rem;
+  color: #4b5563;
+  font-weight: 500;
+  
+  /* 15秒かけて左へ無限スクロール（文字量に合わせてお好みで調整してください） */
+  animation: ticker-scroll 30s linear infinite;
+}
+
+/* 💡 UX：マウスを乗せた時は一時停止して読めるようにする */
+.ticker-content:hover {
+  animation-play-state: paused;
+}
+
+/* 💡 追加：テロップを動かすためのアニメーション定義 */
+@keyframes ticker-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-100%, 0, 0); /* テキストの長さ分だけ左へ滑らかにスライド */
+  }
+}
+
+/* 右側：ナビゲーションメニュー（伸縮しないよう固定） */
 .header-right {
   display: flex;
   align-items: center;
   gap: 20px;
+  flex-shrink: 0;
 }
 
 .nav-btn {
@@ -280,5 +341,12 @@ const openProfile = () => {
   color: #999;
   text-align: center;
   margin-top: 10vh;
+}
+
+/* 💡 追加：モバイルレスポンシブ対応（画面幅が狭いスマホなどはテロップを隠す） */
+@media (max-width: 768px) {
+  .header-ticker {
+    display: none;
+  }
 }
 </style>
