@@ -49,6 +49,29 @@
             </transition>
           </li>
         </ul>
+
+        <div class="sidebar-calendar">
+          <div class="calendar-header">
+            <button @click="prevMonth" class="cal-btn">&lt;</button>
+            <span class="calendar-title">{{ calendarTitle }}</span>
+            <button @click="nextMonth" class="cal-btn">&gt;</button>
+          </div>
+          
+          <div class="calendar-weekdays">
+            <span v-for="day in weekdays" :key="day" class="weekday-cell">{{ day }}</span>
+          </div>
+
+          <div class="calendar-grid">
+            <div 
+              v-for="(day, index) in calendarDays" 
+              :key="index" 
+              class="day-cell"
+              :class="{ 'is-today': day.isToday, 'empty-cell': !day.date }"
+            >
+              {{ day.date }}
+            </div>
+          </div>
+        </div>
       </aside>
 
       <main class="content-area">
@@ -68,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed} from 'vue'
 import { marked } from 'marked'
 import UserProfile from '@/components/UserProfile.vue'
 
@@ -82,6 +105,72 @@ const showProfile = ref(false)
 
 // Viteの機能でMarkdownファイルを一括インポート
 const markdownFiles = import.meta.glob('./assets/content/**/*.md', { query: '?raw', import: 'default' })
+
+// 📅 カレンダー用の状態管理
+const today = new Date()
+const currentYear = ref(today.getFullYear())
+const currentMonth = ref(today.getMonth()) // 0 = 1月, 11 = 12月
+const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+
+// 表示用の「年・月」ヘッダー文字列
+const calendarTitle = computed(() => {
+  return `${currentYear.value}年 ${currentMonth.value + 1}月`
+})
+
+// 💡 カレンダーの「日付マス」を生成する算出プロパティ
+const calendarDays = computed(() => {
+  const year = currentYear.value
+  const month = currentMonth.value
+
+  // 今月の最初の日と最後の日を取得
+  const firstDayOfMonth = new Date(year, month, 1)
+  const lastDayOfMonth = new Date(year, month + 1, 0)
+
+  // 1日の曜日（0: 日曜日 〜 6: 土曜日）と、今月の日数
+  const startDayOfWeek = firstDayOfMonth.getDay()
+  const totalDays = lastDayOfMonth.getDate()
+
+  const days = []
+
+  // 1日の前の「空欄マス（前月分）」を埋める
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push({ date: null, isToday: false })
+  }
+
+  // 今月の日付をすべて追加
+  for (let dateNum = 1; dateNum <= totalDays; dateNum++) {
+    const isToday = 
+      year === today.getFullYear() &&
+      month === today.getMonth() &&
+      dateNum === today.getDate()
+
+    days.push({
+      date: dateNum,
+      isToday: isToday
+    })
+  }
+
+  return days
+})
+
+// 先月・翌月へのナビゲーション関数
+const prevMonth = () => {
+  if (currentMonth.value === 0) {
+    currentMonth.value = 11
+    currentYear.value--
+  } else {
+    currentMonth.value--
+  }
+}
+
+const nextMonth = () => {
+  if (currentMonth.value === 11) {
+    currentMonth.value = 0
+    currentYear.value++
+  } else {
+    currentMonth.value++
+  }
+}
 
 onMounted(() => {
   const structure = {}
@@ -348,5 +437,99 @@ const openProfile = () => {
   .header-ticker {
     display: none;
   }
+}
+
+/* 1. サイドバー自体を縦並びのFlexboxにし、下部に適度な隙間をあける */
+.sidebar {
+  flex: 1;
+  border-right: 1px solid #ddd;
+  background-color: #f9f9f9;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 30px; /* カテゴリーとカレンダーの間隔 */
+}
+
+/* 2. カレンダー全体のコンテナ */
+.sidebar-calendar {
+  background: #ffffff;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+/* カレンダーのヘッダー部（前月、年・月、翌月） */
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.calendar-title {
+  font-weight: bold;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.cal-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #666;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.cal-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+/* 曜日ヘッダー（7カラムグリッド） */
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 4px;
+}
+
+/* 日付グリッド本体（7列固定） */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 6px;
+  text-align: center;
+}
+
+/* 日付マスひとつひとつのデザイン */
+.day-cell {
+  font-size: 0.85rem;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  border-radius: 4px;
+}
+
+/* 空欄マス */
+.empty-cell {
+  background: transparent;
+}
+
+/* 💡 本日の日付のハイライト装飾（ブログのテーマカラー：青系） */
+.day-cell.is-today {
+  background-color: #007acc;
+  color: #ffffff;
+  font-weight: bold;
 }
 </style>
