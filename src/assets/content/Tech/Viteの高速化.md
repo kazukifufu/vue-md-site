@@ -1,3 +1,7 @@
+---
+date: "2026-07-28"
+---
+
 # Viteが爆速な理由
 
 従来のビルドツール（Webpackなど）とは異なり、Viteは開発環境においてブラウザの **Native ESM**（EcmaScript Modules）を利用します。
