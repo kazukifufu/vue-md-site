@@ -33,7 +33,8 @@
 
         <!-- 📅 日付選択中の解除バッジ -->
         <div v-if="selectedDate" class="filter-info">
-          <span class="filter-text">📅 {{ selectedDate }} の記事で絞込み</span>
+          <span class="filter-icon">📅</span>
+          <span class="filter-text">{{ selectedDate }} の記事で絞込み</span>
           <button class="clear-btn" @click="clearFilter">解除</button>
         </div>
 
@@ -522,23 +523,42 @@ const nextMonth = () => {
   padding-left: 20px;
 }
 
+/* 絞り込み状態を表示するエリア全体 */
+.filter-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* カレンダーアイコンの調整 */
+.filter-icon {
+  font-size: 14px;
+}
+
 /* カテゴリータイトル（下部のコンテンツタイトル）と同等のスタイル設定 */
 .filter-text {
   /* カテゴリータイトル（Test, Techなど）と同じサイズ・太さに合わせる */
   font-size: 14px;       /* または 16px や inherit（親要素に合わせる場合） */
-  font-weight: 700;      /* bold: カテゴリータイトルが太字の場合 */
-  line-height: 1.5;
+  font-weight: bold;      /* bold: カテゴリータイトルが太字の場合 */
+  line-height: 1.4;
   color: #333333;        /* カテゴリータイトルのテキスト色に合わせる */
 }
 
-/* 「解除」ボタンの装飾（お好みで調整） */
+/* 「解除」ボタンのスタイル */
 .clear-btn {
-  font-size: 0.75rem;   /* 12px 程度 */
-  padding: 2px 8px;
+  font-size: 11px;
+  padding: 2px 6px;
   border-radius: 4px;
   background-color: #e0e0e0;
+  color: #444;
   border: none;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.clear-btn:hover {
+  background-color: #d0d0d0;
 }
 
 </style>
