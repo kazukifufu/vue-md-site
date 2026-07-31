@@ -33,8 +33,8 @@
 
         <!-- 📅 日付選択中の解除バッジ -->
         <div v-if="selectedDate" class="filter-info">
-          <span>📅 {{ selectedDate }} の記事で絞り込み中</span>
-          <button @click="clearFilter">解除</button>
+          <span class="filter-text">📅 {{ selectedDate }} の記事で絞込み</span>
+          <button class="clear-btn" @click="clearFilter">解除</button>
         </div>
 
         <!-- カテゴリー＆記事リスト -->
@@ -521,4 +521,24 @@ const nextMonth = () => {
 .markdown-body ul {
   padding-left: 20px;
 }
+
+/* カテゴリータイトル（下部のコンテンツタイトル）と同等のスタイル設定 */
+.filter-text {
+  /* カテゴリータイトル（Test, Techなど）と同じサイズ・太さに合わせる */
+  font-size: 14px;       /* または 16px や inherit（親要素に合わせる場合） */
+  font-weight: 700;      /* bold: カテゴリータイトルが太字の場合 */
+  line-height: 1.5;
+  color: #333333;        /* カテゴリータイトルのテキスト色に合わせる */
+}
+
+/* 「解除」ボタンの装飾（お好みで調整） */
+.clear-btn {
+  font-size: 0.75rem;   /* 12px 程度 */
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: #e0e0e0;
+  border: none;
+  cursor: pointer;
+}
+
 </style>
