@@ -11,12 +11,12 @@ function parseFrontMatter(rawContent: string) {
   const frontMatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/
   const match = rawContent.match(frontMatterRegex)
 
-  if (!match) {
+  if (!match || !match[1] || !match[2]) {
     return { data: {}, content: rawContent }
   }
 
-  const yamlBlock = match[1]
-  const content = match[2]
+  const yamlBlock: string = match[1]
+  const content: string = match[2]
   const data: Record<string, string> = {}
 
   yamlBlock.split('\n').forEach(line => {
@@ -46,12 +46,13 @@ export function getAllPosts(): Post[] {
     const { data, content } = parseFrontMatter(rawContent)
 
     if (data.date) {
-      // パスからファイル名（xxxxx.md の xxxxx 部分）を抽出
-      const fileName = path.split('/').pop()?.replace(/\.md$/, '') || '無題'
+      // pop() が undefined になった場合のフォールバックを明示的に記述
+      const lastSegment = path.split('/').pop() ?? ''
+      const fileName = lastSegment.replace(/\.md$/, '') || '無題'
 
       posts.push({
         id: path,
-        title: data.title || fileName, // Front Matterにtitleがなければファイル名を使用
+        title: data.title || fileName,
         date: data.date.trim(),
         content,
         path,
