@@ -2,7 +2,8 @@
   <div class="site-wrapper">
     <header class="global-header">
       <div class="header-left">
-        <div class="logo">
+        <!-- ロゴクリックでデフォルト記事（トップページ）を表示 -->
+        <div class="logo clickable" @click="loadDefaultPost" title="トップページへ">
           <i class="fa-solid fa-pen-nib"></i> <span>Kazuki's Blog. ITは活用する道具である！</span>
         </div>
       </div>
@@ -29,6 +30,14 @@
     <div class="app-container">
       <aside class="sidebar">
         <h2>カテゴリー</h2>
+
+        <!-- 📅 日付選択中の解除バッジ -->
+        <div v-if="selectedDate" class="filter-info">
+          <span>📅 {{ selectedDate }} の記事で絞り込み中</span>
+          <button @click="clearFilter">解除</button>
+        </div>
+
+        <!-- カテゴリー＆記事リスト -->
         <ul class="category-list">
           <li v-for="(articles, category) in menuData" :key="category" class="category-item">
             <div class="category-title" @click="toggleCategory(category)">
@@ -40,6 +49,7 @@
                 <li 
                   v-for="article in articles" 
                   :key="article.path"
+                  v-show="!selectedDate || article.date === selectedDate"
                   :class="{ active: currentArticlePath === article.path }"
                   @click="selectArticle(article)"
                 >
@@ -50,6 +60,7 @@
           </li>
         </ul>
 
+        <!-- カレンダー部分 -->
         <div class="sidebar-calendar">
           <div class="calendar-header">
             <button @click="prevMonth" class="cal-btn">&lt;</button>
@@ -66,7 +77,13 @@
               v-for="(day, index) in calendarDays" 
               :key="index" 
               class="day-cell"
-              :class="{ 'is-today': day.isToday, 'empty-cell': !day.date }"
+              :class="{ 
+                'is-today': day.isToday, 
+                'empty-cell': !day.date,
+                'has-article': day.hasArticle,
+                'is-selected': selectedDate === day.fullDate
+              }"
+              @click="handleDateClick(day)"
             >
               {{ day.date }}
             </div>
@@ -74,6 +91,7 @@
         </div>
       </aside>
 
+      <!-- メイン表示エリア -->
       <main class="content-area">
         <div v-if="showProfile">
           <UserProfile />
@@ -84,452 +102,423 @@
         <div v-else class="placeholder">
           <p>左側のメニューから記事を選択してください.</p>
         </div>
-
       </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed} from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { marked } from 'marked'
 import UserProfile from '@/components/UserProfile.vue'
+import { getAllPosts } from '@/utils/getPosts'
+import { useDateFilter } from '@/composables/useDateFilter'
 
 // 状態管理
 const menuData = ref({})
 const expandedCategories = ref({})
 const htmlContent = ref('')
 const currentArticlePath = ref('')
-// 💡 第3回の修正: プロフィール表示フラグ
 const showProfile = ref(false)
 
-// Viteの機能でMarkdownファイルを一括インポート
-const markdownFiles = import.meta.glob('./assets/content/**/*.md', { query: '?raw', import: 'default' })
+// 全記事データと Composable の呼び出し
+const allArticles = ref([])
+const { selectedDate, setDate, clearFilter } = useDateFilter()
 
-// 📅 カレンダー用の状態管理
-const today = new Date()
-const currentYear = ref(today.getFullYear())
-const currentMonth = ref(today.getMonth()) // 0 = 1月, 11 = 12月
-const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+// Viteの機能でMarkdownファイルを動的ロード用に保持
+const markdownFiles = import.meta.glob('/src/assets/content/**/*.md', { query: '?raw', import: 'default' })
 
-// 表示用の「年・月」ヘッダー文字列
-const calendarTitle = computed(() => {
-  return `${currentYear.value}年 ${currentMonth.value + 1}月`
+// デフォルト表示用 Markdown のパス
+const DEFAULT_MD_PATH = '/src/assets/content/default.md'
+
+// デフォルト表示用 Markdown を読み込む関数
+const loadDefaultPost = async () => {
+  showProfile.value = false
+  currentArticlePath.value = DEFAULT_MD_PATH
+
+  if (markdownFiles[DEFAULT_MD_PATH]) {
+    const rawContent = await markdownFiles[DEFAULT_MD_PATH]()
+    const bodyContent = rawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
+    htmlContent.value = marked(bodyContent)
+  } else {
+    htmlContent.value = ''
+  }
+}
+
+// 記事が存在する日付のリスト（重複なし）
+const articleDates = computed(() => {
+  const dates = allArticles.value.map(article => article.date)
+  return Array.from(new Set(dates))
 })
 
-// 💡 カレンダーの「日付マス」を生成する算出プロパティ
+// 📅 カレンダー描画用ロジック
+const today = new Date()
+const currentYear = ref(today.getFullYear())
+const currentMonth = ref(today.getMonth())
+const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+
+const calendarTitle = computed(() => `${currentYear.value}年 ${currentMonth.value + 1}月`)
+
+const formatDate = (year, month, date) => {
+  const m = String(month + 1).padStart(2, '0')
+  const d = String(date).padStart(2, '0')
+  return `${year}-${m}-${d}`
+}
+
 const calendarDays = computed(() => {
   const year = currentYear.value
   const month = currentMonth.value
 
-  // 今月の最初の日と最後の日を取得
-  const firstDayOfMonth = new Date(year, month, 1)
-  const lastDayOfMonth = new Date(year, month + 1, 0)
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
 
-  // 1日の曜日（0: 日曜日 〜 6: 土曜日）と、今月の日数
-  const startDayOfWeek = firstDayOfMonth.getDay()
-  const totalDays = lastDayOfMonth.getDate()
+  const startDay = firstDay.getDay()
+  const totalDays = lastDay.getDate()
 
   const days = []
 
-  // 1日の前の「空欄マス（前月分）」を埋める
-  for (let i = 0; i < startDayOfWeek; i++) {
-    days.push({ date: null, isToday: false })
+  for (let i = 0; i < startDay; i++) {
+    days.push({ date: null, isToday: false, hasArticle: false, fullDate: '' })
   }
 
-  // 今月の日付をすべて追加
-  for (let dateNum = 1; dateNum <= totalDays; dateNum++) {
-    const isToday = 
-      year === today.getFullYear() &&
-      month === today.getMonth() &&
-      dateNum === today.getDate()
+  for (let d = 1; d <= totalDays; d++) {
+    const fullDate = formatDate(year, month, d)
+    const isToday = year === today.getFullYear() && month === today.getMonth() && d === today.getDate()
+    
+    const hasArticle = articleDates.value.includes(fullDate)
 
     days.push({
-      date: dateNum,
-      isToday: isToday
+      date: d,
+      isToday,
+      hasArticle,
+      fullDate
     })
   }
 
   return days
 })
 
-// 先月・翌月へのナビゲーション関数
-const prevMonth = () => {
-  if (currentMonth.value === 0) {
-    currentMonth.value = 11
-    currentYear.value--
-  } else {
-    currentMonth.value--
-  }
+const handleDateClick = (day) => {
+  if (!day.hasArticle) return
+  setDate(day.fullDate)
 }
 
-const nextMonth = () => {
-  if (currentMonth.value === 11) {
-    currentMonth.value = 0
-    currentYear.value++
-  } else {
-    currentMonth.value++
-  }
+const toggleCategory = (category) => {
+  expandedCategories.value[category] = !expandedCategories.value[category]
 }
 
+// 初期化処理
 onMounted(() => {
-  const structure = {}
-  
-  Object.keys(markdownFiles).forEach((filePath) => {
-    const parts = filePath.replace('./assets/content/', '').split('/')
-    if (parts.length === 2) {
-      const category = parts[0]
-      const fileName = parts[1]
-      const title = fileName.replace('.md', '')
+  allArticles.value = getAllPosts()
 
-      if (!structure[category]) {
-        structure[category] = []
-      }
+  const structure = {}
+  allArticles.value.forEach((article) => {
+    // デフォルト用の default.md はカテゴリーメニューに含めない
+    if (article.path.endsWith('/default.md')) return
+
+    const relativePath = article.path.replace('/src/assets/content/', '')
+    const parts = relativePath.split('/')
+    if (parts.length >= 2) {
+      const category = parts[0]
+      if (!structure[category]) structure[category] = []
+      
       structure[category].push({
-        title,
-        path: filePath
+        title: article.title,
+        path: article.path,
+        date: article.date
       })
     }
   })
 
   menuData.value = structure
-  
-  Object.keys(structure).forEach(category => {
-    expandedCategories.value[category] = false
-  })
+  Object.keys(structure).forEach(cat => expandedCategories.value[cat] = true)
+
+  // 初期起動時にデフォルト記事を表示
+  loadDefaultPost()
 })
 
-// カテゴリの開閉切り替え
-const toggleCategory = (category) => {
-  expandedCategories.value[category] = !expandedCategories.value[category]
-}
-
-// 💡 第3回の修正: 記事の選択とパース（プロフィールを閉じる挙動を追加）
 const selectArticle = async (article) => {
-  showProfile.value = false // 左メニューの記事が選ばれたら、プロフィール画面は閉じる！
+  showProfile.value = false
   currentArticlePath.value = article.path
   
-  const rawContent = await markdownFiles[article.path]()
-  htmlContent.value = marked(rawContent)
+  if (markdownFiles[article.path]) {
+    const rawContent = await markdownFiles[article.path]()
+    const bodyContent = rawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
+    htmlContent.value = marked(bodyContent)
+  }
 }
 
-// 💡 第3回の修正: プロフィール画面を呼び出す専用の関数
 const openProfile = () => {
-  showProfile.value = true  // プロフィールフラグをONにする！
-  currentArticlePath.value = '' // 左メニューの選択ハイライトを綺麗に消す
-  htmlContent.value = ''        // 念のため、現在表示中だった記事のデータをクリア
+  showProfile.value = true
+  htmlContent.value = ''
+  currentArticlePath.value = ''
+}
+
+const prevMonth = () => {
+  if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value--; }
+  else { currentMonth.value--; }
+}
+const nextMonth = () => {
+  if (currentMonth.value === 11) { currentMonth.value = 0; currentYear.value++; }
+  else { currentMonth.value++; }
 }
 </script>
 
 <style scoped>
-/* 全体を包むラッパー：縦に並べる */
+/* 全体レイアウト */
 .site-wrapper {
   display: flex;
   flex-direction: column;
   width: 100vw;
   height: 100vh;
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #333;
+  box-sizing: border-box;
 }
 
-/* ヘッダーのスタイル */
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* ヘッダー */
 .global-header {
   height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 16px;
   background-color: #ffffff;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #e0e0e0;
   flex-shrink: 0;
-}
-
-/* 左側：ロゴエリア（伸縮しないよう固定） */
-.header-left {
-  flex-shrink: 0;
+  gap: 16px;
 }
 
 .header-left .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
-/* 💡 追加：中央のテロップ全体コンテナ（左右の隙間を自動で埋める） */
+.header-left .logo.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.header-left .logo.clickable:hover {
+  opacity: 0.7;
+}
+
 .header-ticker {
-  flex-grow: 1;          /* 左右の空きスペースを埋めるように横幅を自動確保 */
-  margin: 0 30px;        /* 左右の要素と重ならないようマージンを確保 */
-  overflow: hidden;      /* 枠からはみ出たテキストを隠す */
-  background: #f9fafb;   /* 薄いグレーにして背景から少し浮かせる */
-  border-radius: 20px;   /* 今風の丸みのあるカプセルデザイン */
-  padding: 6px 15px;
-  display: flex;
-  align-items: center;
-}
-
-/* 💡 追加：テロップが通る道（ラッパー） */
-.ticker-wrapper {
-  width: 100%;
+  flex: 1;
   overflow: hidden;
-  white-space: nowrap;   /* テキストを絶対に改行させない */
+  font-size: 12px;
+  color: #666;
+  background-color: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
-/* 💡 追加：実際に横スクロールするテキスト要素 */
-.ticker-content {
-  display: inline-block;
-  padding-left: 100%;    /* 開始時に画面の右端からスタートさせる */
-  font-size: 0.85rem;
-  color: #4b5563;
-  font-weight: 500;
-  
-  /* 15秒かけて左へ無限スクロール（文字量に合わせてお好みで調整してください） */
-  animation: ticker-scroll 30s linear infinite;
-}
-
-/* 💡 UX：マウスを乗せた時は一時停止して読めるようにする */
-.ticker-content:hover {
-  animation-play-state: paused;
-}
-
-/* 💡 追加：テロップを動かすためのアニメーション定義 */
-@keyframes ticker-scroll {
-  0% {
-    transform: translate3d(0, 0, 0);
-  }
-  100% {
-    transform: translate3d(-100%, 0, 0); /* テキストの長さ分だけ左へ滑らかにスライド */
-  }
-}
-
-/* 右側：ナビゲーションメニュー（伸縮しないよう固定） */
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
-  flex-shrink: 0;
+  gap: 12px;
+  white-space: nowrap;
 }
 
-.nav-btn {
+.nav-btn, .icon-btn {
   background: none;
   border: none;
   cursor: pointer;
+  font-size: 13px;
+  color: #555;
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.9rem;
-  color: #333;
-}
-
-.nav-btn:hover {
-  color: #007acc;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 5px;
-  display: flex;
-  align-items: center;
+  gap: 4px;
 }
 
 .user-icon {
-  font-size: 1.5rem;
-  cursor: pointer;
+  font-size: 18px;
+  color: #555;
 }
 
-/* コンテンツエリア：1対3の横並び */
+/* メインコンテナ */
 .app-container {
   display: flex;
-  flex-grow: 1;
+  flex: 1;
   overflow: hidden;
 }
 
-/* 左側サイドバー（割合 1） */
+/* サイドバー（固定幅 280px） */
 .sidebar {
-  flex: 1;
-  border-right: 1px solid #ddd;
-  background-color: #f9f9f9;
-  padding: 20px;
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid #e0e0e0;
+  background-color: #fdfdfd;
+  padding: 16px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-/* 右側メインエリア（割合 3） */
-.content-area {
-  flex: 3;
-  padding: 40px;
-  overflow-y: auto;
+.sidebar h2 {
+  font-size: 16px;
+  margin: 0 0 8px 0;
+  color: #222;
 }
 
-/* サイドバーの各種スタイル */
+/* カテゴリーリスト（箇条書きのリセット） */
 .category-list, .article-list {
   list-style: none;
-  padding-left: 0;
+  padding: 0;
+  margin: 0;
 }
 
 .category-item {
-  margin-bottom: 15px;
+  margin-bottom: 8px;
 }
 
 .category-title {
   font-weight: bold;
+  font-size: 14px;
   cursor: pointer;
-  padding: 5px;
-  border-radius: 4px;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
 }
 
-.category-title:hover {
-  background-color: #eaeaea;
-}
-
-.arrow {
-  display: inline-block;
-  width: 15px;
-  font-size: 0.8em;
+.category-title .arrow {
+  font-size: 10px;
+  color: #888;
 }
 
 .article-list {
-  padding-left: 20px;
-  margin-top: 5px;
+  padding-left: 16px;
 }
 
 .article-list li {
-  padding: 6px 10px;
+  font-size: 13px;
+  padding: 4px 8px;
   cursor: pointer;
   border-radius: 4px;
-  margin-bottom: 2px;
+  color: #555;
+  margin-top: 2px;
 }
 
 .article-list li:hover {
   background-color: #f0f0f0;
+  color: #000;
 }
 
 .article-list li.active {
-  background-color: #007acc;
-  color: white;
+  background-color: #e6f7ff;
+  color: #1890ff;
+  font-weight: 500;
 }
 
-/* Markdown表示のスタイル */
-.markdown-body :deep(h1) {
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 10px;
-}
-
-.markdown-body :deep(img) {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 20px 0;
-  border-radius: 6px;
-}
-
-.placeholder {
-  color: #999;
-  text-align: center;
-  margin-top: 10vh;
-}
-
-/* 💡 追加：モバイルレスポンシブ対応（画面幅が狭いスマホなどはテロップを隠す） */
-@media (max-width: 768px) {
-  .header-ticker {
-    display: none;
-  }
-}
-
-/* 1. サイドバー自体を縦並びのFlexboxにし、下部に適度な隙間をあける */
-.sidebar {
-  flex: 1;
-  border-right: 1px solid #ddd;
-  background-color: #f9f9f9;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 30px; /* カテゴリーとカレンダーの間隔 */
-}
-
-/* 2. カレンダー全体のコンテナ */
+/* カレンダー部分 */
 .sidebar-calendar {
-  background: #ffffff;
-  border: 1px solid #eaeaea;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
 }
 
-/* カレンダーのヘッダー部（前月、年・月、翌月） */
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .calendar-title {
   font-weight: bold;
-  font-size: 0.95rem;
-  color: #333;
+  font-size: 13px;
 }
 
 .cal-btn {
   background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  color: #666;
-  padding: 2px 8px;
+  border: 1px solid #ddd;
   border-radius: 4px;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: 12px;
 }
 
-.cal-btn:hover {
-  background-color: #f0f0f0;
-  color: #333;
-}
-
-/* 曜日ヘッダー（7カラムグリッド） */
 .calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   text-align: center;
-  font-weight: bold;
-  font-size: 0.75rem;
-  color: #9ca3af;
-  margin-bottom: 8px;
-  border-bottom: 1px solid #f3f4f6;
-  padding-bottom: 4px;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 4px;
 }
 
-/* 日付グリッド本体（7列固定） */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  row-gap: 6px;
-  text-align: center;
+  gap: 2px;
 }
 
-/* 日付マスひとつひとつのデザイン */
 .day-cell {
-  font-size: 0.85rem;
-  height: 28px;
+  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  font-size: 12px;
   border-radius: 4px;
+  color: #444;
 }
 
-/* 空欄マス */
-.empty-cell {
-  background: transparent;
-}
-
-/* 💡 本日の日付のハイライト装飾（ブログのテーマカラー：青系） */
-.day-cell.is-today {
-  background-color: #007acc;
-  color: #ffffff;
+.day-cell.has-article {
+  cursor: pointer;
   font-weight: bold;
+  color: #1890ff;
+  background-color: #e6f7ff;
+}
+
+.day-cell.has-article:hover {
+  background-color: #bae7ff;
+}
+
+.day-cell.is-today {
+  border: 1px solid #1890ff;
+}
+
+.day-cell.is-selected {
+  background-color: #1890ff !important;
+  color: #fff !important;
+}
+
+/* メインコンテンツ表示域 */
+.content-area {
+  flex: 1;
+  padding: 32px 48px;
+  overflow-y: auto;
+  background-color: #ffffff;
+}
+
+/* Markdownデザインの補正 */
+.markdown-body {
+  line-height: 1.6;
+  color: #24292e;
+}
+
+.markdown-body h1 {
+  font-size: 24px;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.markdown-body h3 {
+  font-size: 16px;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.markdown-body ul {
+  padding-left: 20px;
 }
 </style>
