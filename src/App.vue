@@ -10,11 +10,19 @@
       
       <div class="header-ticker">
         <div class="ticker-wrapper">
-          <div class="ticker-content">
+          <div class="ticker-content" :class="{ paused: !isPlaying }">
             【お知らせ】Vue 3 と Cloudflare Pages を使った自作ブログのカスタマイズ連載を更新中！ 🚀 &nbsp;&nbsp;&nbsp;&nbsp;
             【今週の目標】プロフィール画面に Weekly Compass を導入しました。右上のアバターアイコンからぜひチェックしてください！ ✨
           </div>
         </div>
+        <!-- 再生 / 停止 切り替えボタン -->
+        <button 
+          class="ticker-toggle-btn" 
+          @click="toggleTicker" 
+          :title="isPlaying ? 'スクロールを一時停止' : 'スクロールを再開'"
+        >
+          <i :class="isPlaying ? 'fa-solid fa-pause' : 'fa-solid fa-play'"></i>
+        </button>
       </div>
 
       <div class="header-right">
@@ -121,6 +129,13 @@ const expandedCategories = ref({})
 const htmlContent = ref('')
 const currentArticlePath = ref('')
 const showProfile = ref(false)
+// スクロール状態の管理（初期値は true = 再生）
+const isPlaying = ref(true)
+
+// スクロールの再生・停止切り替え
+const toggleTicker = () => {
+  isPlaying.value = !isPlaying.value
+}
 
 // 全記事データと Composable の呼び出し
 const allArticles = ref([])
@@ -307,16 +322,73 @@ const nextMonth = () => {
 .header-left .logo.clickable:hover {
   opacity: 0.7;
 }
-
+/* ヘッダーの中央ティッカーエリア */
 .header-ticker {
   flex: 1;
   overflow: hidden;
   font-size: 12px;
   color: #666;
   background-color: #f8f9fa;
-  padding: 4px 8px;
+  padding: 4px 32px 4px 8px; /* 右側にボタン分のスペース（32px）を確保 */
   border-radius: 4px;
   white-space: nowrap;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ticker-wrapper {
+  display: inline-block;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* アニメーション用コンテンツ */
+.ticker-content {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: ticker-scroll 25s linear infinite;
+}
+
+/* 停止状態のクラス（isPlaying === false の時に適用） */
+.ticker-content.paused {
+  animation-play-state: paused;
+}
+
+/* 右側に固定配置する切り替えボタン */
+.ticker-toggle-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  font-size: 11px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background-color 0.2s, color 0.2s;
+  z-index: 2;
+}
+
+.ticker-toggle-btn:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+/* 右から左へ移動させるアニメーション定義 */
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .header-right {
