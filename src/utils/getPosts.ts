@@ -42,6 +42,9 @@ export function getAllPosts(): Post[] {
   const posts: Post[] = []
 
   for (const path in modules) {
+    // 💡 default.md（トップページ用）は記事データ・カレンダー判定から除外
+    if (path.endsWith('/default.md')) continue
+    
     const rawContent = modules[path] as string
     const { data, content } = parseFrontMatter(rawContent)
 
