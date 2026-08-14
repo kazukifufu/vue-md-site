@@ -1,12 +1,14 @@
 export interface Post {
   id: string
   title: string
-  date: string // YYYY-MM-DD
+  date: string
+  category: string
+  slug: string
   content: string
   path: string
 }
 
-// Front Matterの解析用関数
+// Front Matter（--- で囲まれたヘッダー情報）の解析関数
 function parseFrontMatter(rawContent: string) {
   const frontMatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/
   const match = rawContent.match(frontMatterRegex)
@@ -33,6 +35,7 @@ function parseFrontMatter(rawContent: string) {
 }
 
 export function getAllPosts(): Post[] {
+  // Vite の import.meta.glob で同期的に全 Markdown を取得
   const modules = import.meta.glob('/src/assets/content/**/*.md', {
     query: '?raw',
     import: 'default',
@@ -42,27 +45,34 @@ export function getAllPosts(): Post[] {
   const posts: Post[] = []
 
   for (const path in modules) {
-    // 💡 default.md（トップページ用）は記事データ・カレンダー判定から除外
+    // 💡 トップページ専用の default.md は記事一覧・カレンダー判定から除外する
     if (path.endsWith('/default.md')) continue
-    
+
     const rawContent = modules[path] as string
     const { data, content } = parseFrontMatter(rawContent)
 
     if (data.date) {
-      // pop() が undefined になった場合のフォールバックを明示的に記述
-      const lastSegment = path.split('/').pop() ?? ''
-      const fileName = lastSegment.replace(/\.md$/, '') || '無題'
+      // パスから category と slug を抽出
+      const relativePath = path.replace('/src/assets/content/', '')
+      const parts = relativePath.split('/')
+      
+      // ⚠️ 修正箇所: TSの型エラー (undefinedの可能性) を防ぐために ?? (Nullish coalescing) を追加
+      const category = parts.length >= 2 ? (parts[0] ?? 'Uncategorized') : 'Uncategorized'
+      const fileName = parts[parts.length - 1] ?? ''
+      const slug = fileName.replace(/\.md$/, '')
 
       posts.push({
         id: path,
-        title: data.title || fileName,
+        title: data.title || slug,
         date: data.date.trim(),
+        category,
+        slug,
         content,
         path,
       })
     }
   }
 
-  // 日付の降順（新しい順）でソート
+  // 日付の降順（新しい順）でソートして返却
   return posts.sort((a, b) => (a.date < b.date ? 1 : -1))
 }

@@ -2,10 +2,10 @@
   <div class="site-wrapper">
     <header class="global-header">
       <div class="header-left">
-        <!-- ロゴクリックでデフォルト記事（トップページ）を表示 -->
-        <div class="logo clickable" @click="loadDefaultPost" title="トップページへ">
+        <!-- ロゴクリックでトップページへ遷移 -->
+        <router-link to="/" class="logo clickable" title="トップページへ">
           <i class="fa-solid fa-pen-nib"></i> <span>Kazuki's Blog. ITは活用する道具である！</span>
-        </div>
+        </router-link>
       </div>
       
       <div class="header-ticker">
@@ -28,9 +28,9 @@
       <div class="header-right">
         <button class="nav-btn"><i class="fa-solid fa-list-ul"></i> List</button>
         <button class="nav-btn"><i class="fa-regular fa-bell"></i> Notifications</button>
-        <button class="icon-btn" @click="openProfile" title="プロフィール">
+        <router-link to="/profile" class="icon-btn" title="プロフィール">
           <i class="fa-regular fa-user"></i>
-        </button>
+        </router-link>
         <div class="user-icon"><i class="fa-regular fa-circle-user"></i></div>
       </div>
     </header>
@@ -59,10 +59,11 @@
                   v-for="article in articles" 
                   :key="article.path"
                   v-show="!selectedDate || article.date === selectedDate"
-                  :class="{ active: currentArticlePath === article.path }"
-                  @click="selectArticle(article)"
+                  :class="{ active: currentCategory === article.category && currentSlug === article.slug }"
                 >
-                  {{ article.title }}
+                  <router-link :to="`/posts/${article.category}/${article.slug}`">
+                    {{ article.title }}
+                  </router-link>
                 </li>
               </ul>
             </transition>
@@ -102,15 +103,8 @@
 
       <!-- メイン表示エリア -->
       <main class="content-area">
-        <div v-if="showProfile">
-          <UserProfile />
-        </div>
-
-        <div v-else-if="htmlContent" class="markdown-body" v-html="htmlContent"></div>
-
-        <div v-else class="placeholder">
-          <p>左側のメニューから記事を選択してください.</p>
-        </div>
+        <!-- ルーターによって PostDetail.vue や UserProfile.vue が動的に切り替わる -->
+        <router-view />
       </main>
     </div>
   </div>
@@ -118,17 +112,21 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { marked } from 'marked'
-import UserProfile from '@/components/UserProfile.vue'
+import { useRoute } from 'vue-router'
 import { getAllPosts } from '@/utils/getPosts'
 import { useDateFilter } from '@/composables/useDateFilter'
+
+// ルート情報の取得
+const route = useRoute()
+
+// 現在の URL パラメータを取得（サイドバーのアクティブハイライト判定用）
+const currentCategory = computed(() => route.params.category)
+const currentSlug = computed(() => route.params.slug)
 
 // 状態管理
 const menuData = ref({})
 const expandedCategories = ref({})
-const htmlContent = ref('')
-const currentArticlePath = ref('')
-const showProfile = ref(false)
+
 // スクロール状態の管理（初期値は true = 再生）
 const isPlaying = ref(true)
 
@@ -140,26 +138,6 @@ const toggleTicker = () => {
 // 全記事データと Composable の呼び出し
 const allArticles = ref([])
 const { selectedDate, setDate, clearFilter } = useDateFilter()
-
-// Viteの機能でMarkdownファイルを動的ロード用に保持
-const markdownFiles = import.meta.glob('/src/assets/content/**/*.md', { query: '?raw', import: 'default' })
-
-// デフォルト表示用 Markdown のパス
-const DEFAULT_MD_PATH = '/src/assets/content/default.md'
-
-// デフォルト表示用 Markdown を読み込む関数
-const loadDefaultPost = async () => {
-  showProfile.value = false
-  currentArticlePath.value = DEFAULT_MD_PATH
-
-  if (markdownFiles[DEFAULT_MD_PATH]) {
-    const rawContent = await markdownFiles[DEFAULT_MD_PATH]()
-    const bodyContent = rawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
-    htmlContent.value = marked(bodyContent)
-  } else {
-    htmlContent.value = ''
-  }
-}
 
 // 記事が存在する日付のリスト（重複なし）
 const articleDates = computed(() => {
@@ -227,48 +205,21 @@ const toggleCategory = (category) => {
 onMounted(() => {
   allArticles.value = getAllPosts()
 
+  // カテゴリーごとに記事をグループ化
   const structure = {}
   allArticles.value.forEach((article) => {
-    // デフォルト用の default.md はカテゴリーメニューに含めない
-    if (article.path.endsWith('/default.md')) return
+    if (article.path && article.path.endsWith('/default.md')) return
 
-    const relativePath = article.path.replace('/src/assets/content/', '')
-    const parts = relativePath.split('/')
-    if (parts.length >= 2) {
-      const category = parts[0]
-      if (!structure[category]) structure[category] = []
-      
-      structure[category].push({
-        title: article.title,
-        path: article.path,
-        date: article.date
-      })
+    if (!structure[article.category]) {
+      structure[article.category] = []
     }
+    structure[article.category].push(article)
   })
 
   menuData.value = structure
+  // 初期状態では全カテゴリーを展開
   Object.keys(structure).forEach(cat => expandedCategories.value[cat] = true)
-
-  // 初期起動時にデフォルト記事を表示
-  loadDefaultPost()
 })
-
-const selectArticle = async (article) => {
-  showProfile.value = false
-  currentArticlePath.value = article.path
-  
-  if (markdownFiles[article.path]) {
-    const rawContent = await markdownFiles[article.path]()
-    const bodyContent = rawContent.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
-    htmlContent.value = marked(bodyContent)
-  }
-}
-
-const openProfile = () => {
-  showProfile.value = true
-  htmlContent.value = ''
-  currentArticlePath.value = ''
-}
 
 const prevMonth = () => {
   if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value--; }
@@ -313,6 +264,11 @@ const nextMonth = () => {
   font-weight: bold;
   font-size: 14px;
   white-space: nowrap;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .header-left .logo.clickable {
@@ -322,6 +278,7 @@ const nextMonth = () => {
 .header-left .logo.clickable:hover {
   opacity: 0.7;
 }
+
 /* ヘッダーの中央ティッカーエリア */
 .header-ticker {
   flex: 1;
@@ -407,6 +364,7 @@ const nextMonth = () => {
   display: flex;
   align-items: center;
   gap: 4px;
+  text-decoration: none;
 }
 
 .user-icon {
@@ -473,19 +431,24 @@ const nextMonth = () => {
 
 .article-list li {
   font-size: 13px;
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  color: #555;
   margin-top: 2px;
+  border-radius: 4px;
 }
 
-.article-list li:hover {
+.article-list li a {
+  display: block;
+  padding: 4px 8px;
+  color: #555;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.article-list li a:hover {
   background-color: #f0f0f0;
   color: #000;
 }
 
-.article-list li.active {
+.article-list li.active a {
   background-color: #e6f7ff;
   color: #1890ff;
   font-weight: 500;
@@ -572,29 +535,6 @@ const nextMonth = () => {
   background-color: #ffffff;
 }
 
-/* Markdownデザインの補正 */
-.markdown-body {
-  line-height: 1.6;
-  color: #24292e;
-}
-
-.markdown-body h1 {
-  font-size: 24px;
-  border-bottom: 1px solid #eaecef;
-  padding-bottom: 8px;
-  margin-bottom: 16px;
-}
-
-.markdown-body h3 {
-  font-size: 16px;
-  margin-top: 24px;
-  margin-bottom: 12px;
-}
-
-.markdown-body ul {
-  padding-left: 20px;
-}
-
 /* 絞り込み状態を表示するエリア全体 */
 .filter-info {
   display: flex;
@@ -603,21 +543,17 @@ const nextMonth = () => {
   margin-bottom: 8px;
 }
 
-/* カレンダーアイコンの調整 */
 .filter-icon {
   font-size: 14px;
 }
 
-/* カテゴリータイトル（下部のコンテンツタイトル）と同等のスタイル設定 */
 .filter-text {
-  /* カテゴリータイトル（Test, Techなど）と同じサイズ・太さに合わせる */
-  font-size: 14px;       /* または 16px や inherit（親要素に合わせる場合） */
-  font-weight: bold;      /* bold: カテゴリータイトルが太字の場合 */
+  font-size: 14px;
+  font-weight: bold;
   line-height: 1.4;
-  color: #333333;        /* カテゴリータイトルのテキスト色に合わせる */
+  color: #333333;
 }
 
-/* 「解除」ボタンのスタイル */
 .clear-btn {
   font-size: 11px;
   padding: 2px 6px;
@@ -632,5 +568,4 @@ const nextMonth = () => {
 .clear-btn:hover {
   background-color: #d0d0d0;
 }
-
 </style>
